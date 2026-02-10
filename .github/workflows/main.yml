@@ -11,40 +11,42 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    # 1. 检出代码
     - name: Checkout code
       uses: actions/checkout@v4
 
-    # 2. 设置 Java 17 环境
     - name: Set up JDK 17
       uses: actions/setup-java@v4
       with:
         java-version: '17'
         distribution: 'temurin'
-        cache: 'gradle'  # 启用 Gradle 依赖缓存
+        cache: 'gradle'
 
-    # 3. 设置 Gradle 环境（新版官方推荐）
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v4
 
-    # 4. 执行构建（包含编译、测试、打包）
-    - name: Build project with Gradle
+    - name: Build project
       run: ./gradlew build --no-daemon
 
-    # 5. 【调试】列出构建产物目录（便于排查问题）
-    - name: List build outputs
+    # 调试：确认产物位置
+    - name: Debug - List all JAR files
       run: |
-        echo "=== Build directory structure ==="
-        find build -type f -name "*.jar" 2>/dev/null || echo "No JAR files found in build/"
-        ls -lah build/libs/ 2>/dev/null || echo "build/libs/ directory does not exist"
+        echo "=== 所有生成的 JAR 文件 ==="
+        find . -path ./build -prune -o -name "*.jar" -type f -print | grep -E "(plugin|project)/build/libs"
 
-    # 6. 上传构建产物到 GitHub Actions Artifacts
-    - name: Upload build artifacts
+    # 上传主插件产物（TabooLib 项目通常只需要 plugin 模块的 JAR）
+    - name: Upload plugin artifact
       uses: actions/upload-artifact@v4
       with:
-        name: java-build-output  # 下载时的文件夹名称
-        path: |
-          build/libs/*.jar       # 主要 JAR 产物
-          build/libs/**/*.jar    # 子目录中的 JAR（如 shadowJar）
-        retention-days: 7        # 保留 7 天（免费账户默认 90 天）
-        if-no-files-found: warn  # 无文件时警告而非失败
+        name: aiyatsbus-plugin
+        path: plugin/build/libs/plugin-*.jar
+        retention-days: 7
+        if-no-files-found: error  # 确保必须找到文件
+
+    # 可选：上传核心模块（如需分发依赖）
+    - name: Upload project core artifact (optional)
+      uses: actions/upload-artifact@v4
+      with:
+        name: aiyatsbus-core
+        path: project/build/libs/project-*.jar
+        retention-days: 7
+        if-no-files-found: ignore
