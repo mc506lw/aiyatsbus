@@ -27,26 +27,42 @@ jobs:
     - name: Build project
       run: ./gradlew build --no-daemon
 
-    # 调试：确认产物位置
-    - name: Debug - List all JAR files
+    # 🔍 关键步骤：精确查找所有 JAR 产物并显示详细信息
+    - name: Locate and display all JAR files
       run: |
         echo "=== 所有生成的 JAR 文件 ==="
-        find . -path ./build -prune -o -name "*.jar" -type f -print | grep -E "(plugin|project)/build/libs"
+        find . -type d -name "libs" -exec sh -c '
+          for dir in "$1"/*; do
+            [ -f "$dir" ] && echo "✓ $(basename $dir) ($(du -h $dir | cut -f1))"
+          done
+        ' sh {} \;
+        echo ""
+        echo "=== 完整路径列表 ==="
+        find . -path "./.gradle" -prune -o -path "./.git" -prune -o -name "*.jar" -type f -print
 
-    # 上传主插件产物（TabooLib 项目通常只需要 plugin 模块的 JAR）
+    # ✅ 上传 plugin 模块产物（TabooLib 项目主插件）
     - name: Upload plugin artifact
       uses: actions/upload-artifact@v4
       with:
         name: aiyatsbus-plugin
-        path: plugin/build/libs/plugin-*.jar
+        path: plugin/build/libs/*.jar
         retention-days: 7
-        if-no-files-found: error  # 确保必须找到文件
+        if-no-files-found: error  # 必须找到文件，否则失败
 
-    # 可选：上传核心模块（如需分发依赖）
+    # ✅ 上传根项目产物（如有）
+    - name: Upload root project artifact (optional)
+      uses: actions/upload-artifact@v4
+      with:
+        name: aiyatsbus-root
+        path: build/libs/*.jar
+        retention-days: 7
+        if-no-files-found: ignore
+
+    # ✅ 上传 project 模块产物（如有）
     - name: Upload project core artifact (optional)
       uses: actions/upload-artifact@v4
       with:
         name: aiyatsbus-core
-        path: project/build/libs/project-*.jar
+        path: project/build/libs/*.jar
         retention-days: 7
         if-no-files-found: ignore
